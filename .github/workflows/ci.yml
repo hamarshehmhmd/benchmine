@@ -1,0 +1,79 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: ubuntu-22.04
+            python: "3.9"
+          - os: macos-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - run: python -m pip install . pytest
+      - run: python -m pytest -q -rs
+
+  real-repo:
+    name: mine a real repo (more-itertools), oracle 100% / noop 0%
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install . pytest
+      - run: git clone -q https://github.com/more-itertools/more-itertools /tmp/mit && git -C /tmp/mit checkout -q f42daddf20
+      - name: mine
+        working-directory: /tmp/mit
+        run: benchmine mine --limit 40 -j 4 | tee /tmp/mine.txt && grep -E 'saved [0-9]{2} tasks' /tmp/mine.txt
+      - name: oracle passes every task, noop none
+        working-directory: /tmp/mit
+        run: |
+          benchmine run --agent oracle -j 4 | tail -1 | tee /tmp/o.txt
+          benchmine run --agent noop -j 4 | tail -1 | tee /tmp/n.txt
+          grep -q ' 100% ' /tmp/o.txt && grep -q ' 0/' /tmp/n.txt
+          benchmine report
+
+  demo:
+    name: demo repo, stand-in agents, compare exits 3
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install . pytest
+      - run: python examples/make_demo_repo.py /tmp/textkit
+      - working-directory: /tmp/textkit
+        run: |
+          S=$GITHUB_WORKSPACE/examples/agents/standin.py
+          benchmine mine
+          benchmine run --agent big-model --cmd "python $S big-model /tmp/textkit.solutions.json" -j 4
+          benchmine run --agent big-model --label big-model-later --cmd "python $S big-model-after-update /tmp/textkit.solutions.json" -j 4
+          benchmine report
+          set +e; benchmine compare latest:big-model latest:big-model-later; rc=$?; set -e
+          test "$rc" -eq 3
+
+  install-script:
+    name: one-line install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: BENCHMINE_REF=${{ github.sha }} sh install.sh
+      - run: |
+          export PATH="$HOME/.local/bin:${PIPX_BIN_DIR:-/opt/pipx_bin}:$PATH"
+          benchmine --version
+          benchmine agents

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "benchmine"
+version = "0.1.0"
+description = "Turn your repo's own git history into a private benchmark for coding agents: compare models and harnesses on your code, and catch silent quality drops."
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{name = "Mohammad Hamarsheh"}]
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["benchmark", "evals", "coding-agents", "llm", "claude-code", "codex", "aider", "swe-bench", "regression", "git"]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/hamarshehmhmd/benchmine"
+Issues = "https://github.com/hamarshehmhmd/benchmine/issues"
+
+[project.scripts]
+benchmine = "benchmine.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
